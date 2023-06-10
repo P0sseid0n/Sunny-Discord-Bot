@@ -1,0 +1,23 @@
+{
+	"name": "sunnybot",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"dev": "cross-env NODE_ENV=development ts-node-dev --respawn src/index"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"cross-env": "^7.0.3",
+		"prisma": "^4.15.0",
+		"ts-node-dev": "^2.0.0",
+		"typescript": "^5.0.4"
+	},
+	"dependencies": {
+		"@prisma/client": "^4.15.0",
+		"discord.js": "^14.11.0",
+		"dotenv": "^16.0.3"
+	}
+}
