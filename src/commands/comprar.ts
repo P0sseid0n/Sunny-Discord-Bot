@@ -16,7 +16,7 @@ import { elos, tiers, yesNo } from '../utils/questionOptions'
 interface IQuestion {
 	title: string
 	id: string
-	options?: {
+	options: {
 		text: string
 		value: string
 	}[]
@@ -74,7 +74,6 @@ const questions: IQuestion[] = [
 	// 	title: 'Qual seu PDL atual?',
 	// 	input: '0 ~ 100',
 	// },
-	/*
 	{
 		title: 'Quanto PDL ganha por vitória?',
 		id: 'pdlPerWin',
@@ -194,8 +193,38 @@ const questions: IQuestion[] = [
 		id: 'priorityQueue',
 		options: yesNo,
 	},
-   */
 ]
+
+function encodeResponse(responses: IQuestionResponses) {
+	let result = ''
+
+	for (const [key, value] of Object.entries(responses)) {
+		const question = questions.find(question => question.id === key)
+		const optionIndex = question?.options?.findIndex(option => option.value === value)
+
+		result += optionIndex
+	}
+
+	return result
+}
+
+function decodeResponse(encoded: string) {
+	const responses: IQuestionResponses = {}
+
+	for (let i = 0; i < encoded.length; i++) {
+		const question = questions[i]
+
+		const optionIndex = parseInt(encoded[i])
+
+		if (question.options.length <= optionIndex) return null
+
+		const option = question.options[optionIndex]
+
+		responses[question.id] = option.value
+	}
+
+	return responses
+}
 
 function getQuestionReply(question: IQuestion, index: number) {
 	const embed = new EmbedBuilder({
@@ -288,7 +317,7 @@ function getCheckoutPrice(responses: IQuestionResponses) {
 	return price
 }
 
-function getCheckoutReply(responses: IQuestionResponses) {
+function getCheckoutConfirmMsg(responses: IQuestionResponses) {
 	const textResponses = []
 
 	for (const [key, value] of Object.entries(responses)) {
@@ -367,7 +396,13 @@ export const command: ICommand = {
 	data: new SlashCommandBuilder()
 		.setName('comprar')
 		.setDescription('Comprar um serviço')
-		.addSubcommand(subcommand => subcommand.setName('elojob').setDescription('Comprar um serviço de elojob')),
+		.addSubcommand(subcommand =>
+			subcommand
+				.setName('elojob')
+				.setDescription('Comprar um serviço de elojob')
+				.addStringOption(option => option.setName('codigo').setDescription('Código de compra rápida').setRequired(true))
+		),
+
 	async run(client, interaction) {
 		async function getJobbersOnline() {
 			const registered = await client.database.jobber.findMany({})
@@ -382,6 +417,31 @@ export const command: ICommand = {
 		await interaction.deferReply({ ephemeral: true })
 
 		const responses: IQuestionResponses = {}
+
+		async function sendCheckoutConfirmMsg() {
+			console.log(responses)
+
+			console.log(encodeResponse(responses))
+
+			const replied = await interaction.editReply(getCheckoutConfirmMsg(responses))
+
+			const collector = replied.createMessageComponentCollector({
+				time: 30_000,
+			})
+
+			collector.on('collect', async collected => {
+				await collected.deferUpdate()
+				collector.stop()
+				if (collected.customId === 'confirm') {
+					checkout()
+				} else if (collected.customId === 'cancel') {
+					await interaction.editReply({
+						content: 'Compra cancelada ❌',
+						components: [],
+					})
+				}
+			})
+		}
 
 		async function replyQuestion(index: number) {
 			const replied = await interaction.editReply(getQuestionReply(questions[index], index))
@@ -403,28 +463,7 @@ export const command: ICommand = {
 					collector.stop()
 
 					if (questions[index + 1]) await replyQuestion(index + 1)
-					else {
-						console.log(responses)
-
-						const replied = await interaction.editReply(getCheckoutReply(responses))
-
-						const collector = replied.createMessageComponentCollector({
-							time: 30_000,
-						})
-
-						collector.on('collect', async collected => {
-							await collected.deferUpdate()
-							collector.stop()
-							if (collected.customId === 'confirm') {
-								checkout()
-							} else if (collected.customId === 'cancel') {
-								await interaction.editReply({
-									content: 'Compra cancelada ❌',
-									components: [],
-								})
-							}
-						})
-					}
+					else await sendCheckoutConfirmMsg()
 				}
 			})
 
@@ -470,6 +509,31 @@ export const command: ICommand = {
 				})
 		}
 
-		await replyQuestion(0)
+		const checkoutCode = interaction.options.get('codigo')?.value
+
+		if (checkoutCode && typeof checkoutCode === 'string') {
+			const decoded = decodeResponse(checkoutCode)
+
+			if (decoded === null) {
+				await interaction.editReply({
+					content: 'Código inválido ❌',
+					components: [],
+				})
+
+				return
+			}
+
+			for (const [key, value] of Object.entries(decoded)) {
+				responses[key] = value
+			}
+
+			if (checkoutCode.length < questions.length) {
+				await replyQuestion(checkoutCode.length)
+			} else {
+				await sendCheckoutConfirmMsg()
+			}
+		} else {
+			await replyQuestion(0)
+		}
 	},
 }

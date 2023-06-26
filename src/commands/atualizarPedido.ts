@@ -1,13 +1,31 @@
-import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ComponentType } from 'discord.js'
+import {
+	SlashCommandBuilder,
+	PermissionFlagsBits,
+	EmbedBuilder,
+	ButtonBuilder,
+	ButtonStyle,
+	ComponentType,
+	bold,
+	inlineCode,
+	userMention,
+} from 'discord.js'
 import { ICommand } from '../types'
 import { OrderStatus } from '@prisma/client'
 
-function getNextOrderStatus(currentStatus: string) {
-	switch (currentStatus) {
+function translateStatus(status: OrderStatus) {
+	switch (status) {
+		case 'AwaitingPayment':
+			return 'Aguardando pagamento'
 		case 'Pending':
-			return 'In Progress'
-		case 'In Progress':
-			return 'Completed'
+			return 'Pendente'
+		case 'InProgress':
+			return 'Em progresso'
+		case 'Completed':
+			return 'Finalizado'
+		case 'Canceled':
+			return 'Cancelado'
+		default:
+			return 'Desconhecido'
 	}
 }
 
@@ -48,13 +66,21 @@ export const command: ICommand = {
 			.setDescription('**Confirma a atualização do status do pedido?**')
 			.addFields(
 				{
+					name: 'ID do pedido',
+					value: bold(inlineCode(currentOrder.id)),
+				},
+				{
+					name: 'Cliente',
+					value: userMention(currentOrder.customerId),
+				},
+				{
 					name: 'Status atual',
-					value: currentOrder.status,
+					value: bold(inlineCode(translateStatus(currentOrder.status))),
 					inline: true,
 				},
 				{
 					name: 'Novo status',
-					value: nextOrderStatus,
+					value: bold(inlineCode(translateStatus(nextOrderStatus))),
 					inline: true,
 				}
 			)
