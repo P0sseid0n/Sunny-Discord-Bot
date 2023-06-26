@@ -52,36 +52,38 @@ class Bot extends Discord.Client {
 
 			if (!guildId) throw new Error('Erro ao pegar o id do servidor')
 
-			// const guildCommands = (await rest.get(
-			// 	Discord.Routes.applicationGuildCommands(clientId, guildId)
-			// )) as RESTGetAPIApplicationCommandsResult
+			const guildCommands = (await rest.get(
+				Discord.Routes.applicationGuildCommands(clientId, guildId)
+			)) as RESTGetAPIApplicationCommandsResult
 
-			// for (const command of guildCommands) {
-			// 	const deleteUrl = `${Discord.Routes.applicationGuildCommands(clientId, guildId)}/${command.id}`
-			// 	await rest.delete(`/${deleteUrl}`)
-			// }
+			if (guildCommands.length === restBody.length) return
 
-			// console.log(`Comandos do servidor apagados: ${guildCommands.length}`)
+			for (const command of guildCommands) {
+				const deleteUrl = `${Discord.Routes.applicationGuildCommands(clientId, guildId)}/${command.id}`
+				await rest.delete(`/${deleteUrl}`)
+			}
 
-			// const applicationCommands = (await rest.get(
-			// 	Discord.Routes.applicationCommands(clientId)
-			// )) as RESTGetAPIApplicationCommandsResult
+			console.log(`Comandos do servidor apagados: ${guildCommands.length}`)
 
-			// for (const command of applicationCommands) {
-			// 	const deleteUrl = `${Discord.Routes.applicationCommands(clientId)}/${command.id}`
-			// 	await rest.delete(`/${deleteUrl}`)
-			// }
+			const applicationCommands = (await rest.get(
+				Discord.Routes.applicationCommands(clientId)
+			)) as RESTGetAPIApplicationCommandsResult
 
-			// console.log(`Comandos globais apagados: ${applicationCommands.length}`)
+			for (const command of applicationCommands) {
+				const deleteUrl = `${Discord.Routes.applicationCommands(clientId)}/${command.id}`
+				await rest.delete(`/${deleteUrl}`)
+			}
 
-			// try {
-			// 	await rest.put(Discord.Routes.applicationGuildCommands(clientId, guildId), {
-			// 		body: restBody,
-			// 	})
-			// 	console.log(`Comandos do servidor carregados: ${restBody.length}`)
-			// } catch (error) {
-			// 	console.log(error)
-			// }
+			console.log(`Comandos globais apagados: ${applicationCommands.length}`)
+
+			try {
+				await rest.put(Discord.Routes.applicationGuildCommands(clientId, guildId), {
+					body: restBody,
+				})
+				console.log(`Comandos do servidor carregados: ${restBody.length}`)
+			} catch (error) {
+				console.log(error)
+			}
 		} else {
 			await rest.put(Discord.Routes.applicationCommands(clientId), { body: restBody })
 		}

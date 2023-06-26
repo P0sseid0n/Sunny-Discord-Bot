@@ -1,4 +1,4 @@
-import { EmbedBuilder, SlashCommandBuilder, inlineCode, PermissionFlagsBits, userMention } from 'discord.js'
+import { EmbedBuilder, SlashCommandBuilder, inlineCode } from 'discord.js'
 import { ICommand } from '../types'
 import { OrderStatus } from '@prisma/client'
 
@@ -11,10 +11,6 @@ function formatDateHour(date: Date) {
 	const second = date.getSeconds().toString().padStart(2, '0')
 
 	return `${day}/${month}/${year} ${hour}:${minute}:${second}`
-}
-
-function getUserAvatarUrl(user: { id: string; avatar: string | null }) {
-	// return "https://cdn.discordapp.com/avatars/"+message.author.id+"/"+message.author.avatar+".jpeg"
 }
 
 function translateStatus(status: OrderStatus) {
@@ -36,22 +32,16 @@ function translateStatus(status: OrderStatus) {
 
 export const command: ICommand = {
 	data: new SlashCommandBuilder()
-		.setName('pedidos')
-		.setDescription('Mostra os pedidos do usuário selecionado')
-		.addUserOption(option => option.setName('customer').setDescription('Usuário que fez o pedido').setRequired(true))
-		.addStringOption(option => option.setName('id').setDescription('ID do pedido'))
-		.setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
+		.setName('meus-pedidos')
+		.setDescription('Mostra os pedidos do usuário')
+		.addStringOption(option => option.setName('id').setDescription('ID do pedido')),
 	async run(client, interaction) {
 		const orderId = interaction.options.get('id')?.value
-		const customerId = interaction.options.get('customer')?.value
-
-		if (typeof customerId !== 'string') return interaction.reply({ content: 'Usuário inválido', ephemeral: true })
 
 		if (orderId && typeof orderId === 'string') {
-			const order = await client.database.orders.findFirst({
+			const order = await client.database.orders.findUnique({
 				where: {
 					id: orderId,
-					customerId,
 				},
 			})
 			if (!order) return interaction.reply('Nenhum pedido encontrado com esse ID')
@@ -65,7 +55,7 @@ export const command: ICommand = {
 		} else {
 			const orders = await client.database.orders.findMany({
 				where: {
-					customerId,
+					customerId: interaction.user.id,
 				},
 			})
 
@@ -81,11 +71,8 @@ export const command: ICommand = {
 				.join('\n')
 
 			const reply = new EmbedBuilder()
-				.setTitle('Pedidos do Cliente')
-				.addFields([
-					{ name: 'Cliente', value: userMention(customerId) },
-					{ name: 'Data de criação | ID do pedido | Status atual', value: ordersText || '\nNenhum pedido encontrado' },
-				])
+				.setTitle('Seus Pedidos')
+				.addFields({ name: 'Data de criação | ID do pedido | Status atual', value: ordersText || '\nNenhum pedido encontrado' })
 				.setFooter({ text: `${orders.length} pedidos encontrados` })
 
 			interaction.reply({
